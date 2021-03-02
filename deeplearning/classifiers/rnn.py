@@ -137,7 +137,19 @@ class CaptioningRNN(object):
         # defined above to store loss and gradients; grads[k] should give the      #
         # gradients for self.params[k].                                            #
         ############################################################################
-        pass
+        caches = {}
+        ## forward
+        h0, caches['affine'] = affine_forward(features, W_proj, b_proj)
+        captions_x, caches['word_embedding'] = word_embedding_forward(captions_in, W_embed)
+        if (self.cell_type == 'rnn') :
+            hiddens, caches['rnn'] = rnn_forward(captions_x, h0, Wx, Wh, b)
+        captions_y, caches['temp_affine'] = temporal_affine_forward(hiddens, W_vocab, b_vocab)
+        loss, dout = temporal_softmax_loss(captions_y, captions_out, mask)
+        ## backward
+        dx, grads['W_vocab'], grads['b_vocab'] = temporal_affine_backward(dout, caches['temp_affine'])
+        dx, dh0, grads['Wx'], grads['Wh'], grads['b'] = rnn_backward(dx, caches['rnn'])
+        dimg_x, grads['W_proj'], grads['b_proj'] = affine_backward(dh0, caches['affine'])
+        grads['W_embed'] = word_embedding_backward(dx, caches['word_embedding'])
         ############################################################################
         #                             END OF YOUR CODE                             #
         ############################################################################
@@ -199,7 +211,26 @@ class CaptioningRNN(object):
         # functions; you'll need to call rnn_step_forward or lstm_step_forward in #
         # a loop.                                                                 #
         ###########################################################################
-        pass
+        V, D_embed = W_embed.shape
+        N, D_features = features.shape
+        
+        for i in range(0, N) :
+            caches = {}
+            h0, caches['affine'] = affine_forward(features[i, :].reshape((1,D_features)), W_proj, b_proj)
+            word_curr_idx = self._start
+            prev_h = h0
+            flag = 0
+            while flag < max_length :
+                word_curr_vec = W_embed[word_curr_idx, :]
+                next_h, caches['garbage'] = rnn_step_forward(word_curr_vec.reshape((1,D_embed)), prev_h, Wx, Wh, b)
+                transformed_next_h = next_h @ W_vocab + b_vocab
+                word_curr_idx = np.argmax(transformed_next_h)
+                prev_h = next_h
+                captions[i, flag] = word_curr_idx
+                flag += 1
+                if word_curr_idx == self._end :
+                    flag = max_length
+        
         ############################################################################
         #                             END OF YOUR CODE                             #
         ############################################################################
