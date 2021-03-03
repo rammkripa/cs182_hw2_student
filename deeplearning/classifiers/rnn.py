@@ -143,11 +143,16 @@ class CaptioningRNN(object):
         captions_x, caches['word_embedding'] = word_embedding_forward(captions_in, W_embed)
         if (self.cell_type == 'rnn') :
             hiddens, caches['rnn'] = rnn_forward(captions_x, h0, Wx, Wh, b)
+        elif (self.cell_type == 'lstm') :
+            hiddens, caches['lstm'] = lstm_forward(captions_x, h0, Wx, Wh, b)
         captions_y, caches['temp_affine'] = temporal_affine_forward(hiddens, W_vocab, b_vocab)
         loss, dout = temporal_softmax_loss(captions_y, captions_out, mask)
         ## backward
         dx, grads['W_vocab'], grads['b_vocab'] = temporal_affine_backward(dout, caches['temp_affine'])
-        dx, dh0, grads['Wx'], grads['Wh'], grads['b'] = rnn_backward(dx, caches['rnn'])
+        if (self.cell_type == 'rnn') :
+            dx, dh0, grads['Wx'], grads['Wh'], grads['b'] = rnn_backward(dx, caches['rnn'])
+        elif (self.cell_type == 'lstm') :
+            dx, dh0, grads['Wx'], grads['Wh'], grads['b'] = lstm_backward(dx, caches['lstm'])
         dimg_x, grads['W_proj'], grads['b_proj'] = affine_backward(dh0, caches['affine'])
         grads['W_embed'] = word_embedding_backward(dx, caches['word_embedding'])
         ############################################################################
@@ -219,13 +224,19 @@ class CaptioningRNN(object):
             h0, caches['affine'] = affine_forward(features[i, :].reshape((1,D_features)), W_proj, b_proj)
             word_curr_idx = self._start
             prev_h = h0
+            H = h0.shape[0]
+            prev_c = np.zeros((1, H))
             flag = 0
             while flag < max_length :
-                word_curr_vec = W_embed[word_curr_idx, :]
-                next_h, caches['garbage'] = rnn_step_forward(word_curr_vec.reshape((1,D_embed)), prev_h, Wx, Wh, b)
+                word_curr_vec = W_embed[word_curr_idx, :].reshape((1, D_embed))
+                if self.cell_type == 'rnn' :
+                    next_h, caches['garbage'] = rnn_step_forward(word_curr_vec, prev_h, Wx, Wh, b)
+                elif self.cell_type == 'lstm' :
+                    next_h, next_c, caches['garbage'] = lstm_step_forward(word_curr_vec, prev_h, prev_c, Wx, Wh, b)
                 transformed_next_h = next_h @ W_vocab + b_vocab
                 word_curr_idx = np.argmax(transformed_next_h)
                 prev_h = next_h
+                prev_c = next_c
                 captions[i, flag] = word_curr_idx
                 flag += 1
                 if word_curr_idx == self._end :
