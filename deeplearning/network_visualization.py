@@ -31,7 +31,17 @@ def compute_saliency_maps(X, y, model):
     # to each input image. You first want to compute the loss over the correct   #
     # scores, and then compute the gradients with torch.autograd.gard.           #
     ##############################################################################
-    pass
+    N, a, H, W = X.shape
+    y_pred = model.forward(X)
+    y_pred_max_idx = torch.LongTensor(y_pred.argmax(axis = 1))
+    max_scores = y_pred.gather(1, y_pred_max_idx.view(-1, 1)).squeeze()
+    saliencies = torch.zeros((N, H, W))
+    for i in range(0, N) :
+        max_score = max_scores[i]
+        max_score.backward(retain_graph = True)
+        saliencies_i, _ = torch.max(X.grad.data.abs(),dim=1)
+        saliencies += saliencies_i
+    saliency = saliencies
     ##############################################################################
     #                             END OF YOUR CODE                               #
     ##############################################################################
