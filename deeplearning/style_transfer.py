@@ -20,7 +20,10 @@ def content_loss(content_weight, content_current, content_target):
     ##############################################################################
     #                               YOUR CODE HERE                               #
     ##############################################################################
-    return None
+    a, c, h, w = content_current.shape
+    content_target_reshaped = content_target.reshape((c, h*w))
+    content_current_reshaped = content_current.reshape((c, h*w))
+    return content_weight * torch.sum((content_target_reshaped - content_current_reshaped)**2)
     ##############################################################################
     #                               END OF YOUR CODE                             #
     ##############################################################################
@@ -43,7 +46,16 @@ def gram_matrix(features, normalize=True):
     ##############################################################################
     #                               YOUR CODE HERE                               #
     ##############################################################################
-    return None
+    N, C, H, W = features.shape
+    gram = torch.zeros((N, C, C))
+    for i in range(0, N) :
+        features_i = features[i, :, :, :]
+        features_i_reshaped = features_i.reshape((C, H*W))
+        gram_i = features_i_reshaped @ features_i_reshaped.T
+        gram[i, :, :] = gram_i
+    if normalize :
+        gram = gram/(H*W*C)
+    return gram
     ##############################################################################
     #                               END OF YOUR CODE                             #
     ##############################################################################
@@ -72,7 +84,19 @@ def style_loss(feats, style_layers, style_targets, style_weights):
     ##############################################################################
     #                               YOUR CODE HERE                               #
     ##############################################################################
-    return None
+    style_loss = 0
+    for i in range(0, len(style_layers)) :
+        feat_idx = style_layers[i]
+        #index into feats
+        feat_i = feats[feat_idx]
+        feat_gram = gram_matrix(feat_i)
+        #index into target
+        target_gram = style_targets[i]
+        # MSE loss
+        mse_loss_i = torch.sum(((target_gram - feat_gram) ** 2))
+        style_loss += style_weights[i] * mse_loss_i
+    return style_loss
+
     ##############################################################################
     #                               END OF YOUR CODE                             #
     ##############################################################################
@@ -94,7 +118,14 @@ def tv_loss(img, tv_weight):
     ##############################################################################
     #                               YOUR CODE HERE                               #
     ##############################################################################
-    return None
+    loss = 0
+    a, b, H, W = img.shape
+    img_centered_y = img[:, :, 0:H-1, :]
+    img_shift_y = img[:, :, 1:H, :]
+    img_centered_x = img[:, :, :, 0:W-1]
+    img_shift_x = img[:, :, :, 1:W]
+    loss = torch.sum((img_centered_y - img_shift_y) ** 2) + torch.sum((img_centered_x - img_shift_x) ** 2)
+    return tv_weight * loss
     ##############################################################################
     #                               END OF YOUR CODE                             #
     ##############################################################################
