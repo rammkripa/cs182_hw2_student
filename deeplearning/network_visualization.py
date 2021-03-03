@@ -4,7 +4,7 @@ import numpy as np
 
 import torch
 import torch.nn.functional as F
-
+import torchvision.transforms as T
 
 def compute_saliency_maps(X, y, model):
     """
@@ -81,7 +81,18 @@ def make_fooling_image(X, target_y, model):
     # in fewer than 100 iterations of gradient ascent.                           #
     # You can print your progress over iterations to check your algorithm.       #
     ##############################################################################
-    pass
+    for i in range(0, 100) :
+        yi = model.forward(X_fooling)
+        max_y = yi.argmax(axis = 1)
+        if (max_y == target_y) :
+            break
+        score = yi[0, target_y]
+        if (i%10 == 0) :
+            print(i)
+            print(score)
+        score.backward()
+        g = X_fooling.grad.data
+        X_fooling = (X_fooling.clone() + learning_rate * g / torch.norm(g)).detach().requires_grad_(True)
     ##############################################################################
     #                             END OF YOUR CODE                               #
     ##############################################################################
