@@ -40,7 +40,7 @@ def compute_saliency_maps(X, y, model):
         max_score = max_scores[i]
         max_score.backward(retain_graph = True)
         saliencies_i, _ = torch.max(X.grad.data.abs(),dim=1)
-        saliencies += saliencies_i
+        saliencies[i, :, :] += saliencies_i[i, :, :]
     saliency = saliencies
     ##############################################################################
     #                             END OF YOUR CODE                               #
