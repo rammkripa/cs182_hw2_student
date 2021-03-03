@@ -33,7 +33,9 @@ def compute_saliency_maps(X, y, model):
     ##############################################################################
     N, a, H, W = X.shape
     y_pred = model.forward(X)
-    y_pred_max_idx = torch.LongTensor(y_pred.argmax(axis = 1))
+    
+    y_pred_max_idx = y#torch.LongTensor(y_pred.argmax(axis = 1))
+    print(y - torch.LongTensor(y_pred.argmax(axis = 1)))
     max_scores = y_pred.gather(1, y_pred_max_idx.view(-1, 1)).squeeze()
     saliencies = torch.zeros((N, H, W))
     for i in range(0, N) :
